@@ -1,2 +1,2 @@
-# JPP-interpreter
-Interpreter of own imperative language written in Haskell
+# JPP - Risotto language interpreter
+Programming Languages and Paradigms - 6. semester @ MIMUW
