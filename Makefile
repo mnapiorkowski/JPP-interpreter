@@ -1,9 +1,15 @@
+BUILD_DIR=build
+
 .PHONY: clean
 
-all: grammar
+all: grammar interpreter
 
 grammar: grammar.cf
-	bnfc --haskell -d grammar.cf
+	bnfc --haskell -m -d grammar.cf -o ${BUILD_DIR}
+	cd ${BUILD_DIR} && make
+
+interpreter: *.hs
+	ghc Main.hs -package mtl -i${BUILD_DIR} -outputdir ${BUILD_DIR} -o interpreter
 
 clean:
-	rm -rf Grammar
+	rm -rf ${BUILD_DIR} interpreter
