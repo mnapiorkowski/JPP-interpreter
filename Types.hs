@@ -19,5 +19,7 @@ type IStore = Map Loc IVal
 type IM a = StateT IStore (ReaderT IEnv Result) a -- interpreter monad
 
 -- typechecker
-type TEnv = Map Ident Type
+type VarEnv = Map Ident Type
+type FuncEnv = Map Ident (Type, [Type])
+type TEnv = (VarEnv, FuncEnv)
 type TM a = ReaderT TEnv Result a -- typechecker monad
