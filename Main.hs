@@ -10,8 +10,8 @@ import Grammar.Abs    ( Progr )
 import Grammar.Layout ( resolveLayout )
 import Grammar.Par    ( pProgr, myLexer )
 
-import qualified Typechecker as T (typecheck)
-import qualified Interpreter as I (interpret)
+import qualified Typechecker.Program as T ( typecheck )
+import qualified Interpreter.Program as I ( interpret )
 
 parse :: String -> Either String Progr
 parse s = pProgr (resolveLayout False $ myLexer s)
@@ -44,8 +44,7 @@ main = do
           putStrLn "OK"
           putStrLn "Interpreting..."
           case interpret progr of
-            Left err ->
-              do
+            Left err -> do
                 hPutStrLn stderr $ "Runtime error:\n" ++ err
                 exitFailure
             Right _ -> do

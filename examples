@@ -25,12 +25,12 @@ void locVar():
     globVar();
     print x; // 10
     return;
-
+/*
 void risotto(ref string s):
     s = s + "o";
     s = s + "t";
     turnback "Ris" + s;
-
+*/
 void main():
     // Example 1.
     print sumEven(10); // 30
@@ -41,7 +41,7 @@ void main():
 
     // Example 3.
     let string s;
-    risotto(s);
+    //risotto(s);
     print s; // "Risotto"
 
     return;

@@ -1,4 +1,4 @@
-module Interpreter where
+module Interpreter.Program where
 
 import Grammar.Abs
 
