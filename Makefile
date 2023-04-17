@@ -5,7 +5,7 @@ BUILD_DIR=build
 all: grammar interpreter
 
 grammar: grammar.cf
-	bnfc --haskell -m -d grammar.cf -o ${BUILD_DIR}
+	bnfc --haskell --functor -m -d grammar.cf -o ${BUILD_DIR}
 	cd ${BUILD_DIR} && make
 
 interpreter: *.hs Typechecker/*.hs Interpreter/*.hs

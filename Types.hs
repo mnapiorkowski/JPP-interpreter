@@ -7,7 +7,9 @@ import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Grammar.Abs (Ident, Type)
+import Grammar.Abs (Ident, BNFC'Position)
+
+type Pos = BNFC'Position
 
 type Loc = Int
 type Result = Except String
@@ -19,6 +21,8 @@ type IStore = Map Loc IVal
 type IM a = StateT IStore (ReaderT IEnv Result) a -- interpreter monad
 
 -- typechecker
+data Type = Int | String | Bool | Void
+    deriving (Eq) 
 type VarEnv = Map Ident Type
 type FuncEnv = Map Ident (Type, [Type])
 type TEnv = (VarEnv, FuncEnv)

@@ -6,12 +6,12 @@ layout stop "return", "turnback", "endwhile", "elif", "else", "endif" ;
 entrypoints     Progr ;
 Program.        Progr ::= [TopDef] ;
 
-FnDef.          TopDef ::= Type Ident "(" [Arg] ")" ":" Block Ret ;
-GlobVar.        TopDef ::= "global" Type [Item] ;
+FnDef.          TopDef ::= TType Ident "(" [Arg] ")" ":" Block Ret ;
+GlobVar.        TopDef ::= "global" TType [Item] ;
 terminator      nonempty TopDef ";" ;
 
-ValArg.         Arg ::= Type Ident ;
-RefArg.         Arg ::= "ref" Type Ident ;
+ValArg.         Arg ::= TType Ident ;
+RefArg.         Arg ::= "ref" TType Ident ;
 separator       Arg "," ;
 
 Return.         Ret ::= "return" Expr ;
@@ -26,7 +26,7 @@ terminator      Stmt ";" ;
 
 SExpr.          Stmt ::= Expr ;
 
-SDecl.          Stmt ::= "let" Type [Item] ;
+SDecl.          Stmt ::= "let" TType [Item] ;
 NoInit.         Item ::= Ident ;
 Init.           Item ::= Ident "=" Expr ;
 separator       nonempty Item "," ;
@@ -48,10 +48,10 @@ SPrint.         Stmt ::= "print" Expr ;
 
 -- types ---------------------------------------------------
 
-TInt.           Type ::= "int" ;
-TBool.          Type ::= "bool" ;
-TString.        Type ::= "string" ;
-TVoid.          Type ::= "void" ;
+TInt.           TType ::= "int" ;
+TBool.          TType ::= "bool" ;
+TString.        TType ::= "string" ;
+TVoid.          TType ::= "void" ;
 
 -- expressions ---------------------------------------------
 

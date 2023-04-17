@@ -17,8 +17,8 @@ import Types
 
 typeofArg :: Arg -> TM Type
 typeofArg a = case a of
-    ValArg t id -> return t
-    RefArg t id -> return t
+    ValArg _ tt _ -> return $ convTType tt
+    RefArg _ tt _ -> return $ convTType tt
 
 typeofArgs :: [Arg] -> TM [Type]
 typeofArgs [] = return []
@@ -29,16 +29,17 @@ typeofArgs (a:as) = do
 
 typeofRet :: Ret -> TM Type
 typeofRet r = case r of
-    Return e -> typeofExpr e
-    VReturn -> return TVoid
-    Turnback e -> typeofExpr e
-    VTurnback -> return TVoid
+    Return _ e -> typeofExpr e
+    VReturn _ -> return Void
+    Turnback _ e -> typeofExpr e
+    VTurnback _ -> return Void
 
-checkArg' :: Type -> Ident -> TM TEnv
-checkArg' t id = do
-    if t == TVoid
-        then throwE $
-            "argument of a function cannot be void type: " ++ printTree id
+checkArg' :: Pos -> TType -> Ident -> TM TEnv
+checkArg' pos tt id = do
+    let t = convTType tt
+    if t == Void
+        then throwE pos $
+            "argument of a function cannot be void-type: " ++ printTree id
     else do
         (varEnv, funcEnv) <- ask
         let varEnv' = Map.insert id t varEnv
@@ -46,8 +47,8 @@ checkArg' t id = do
 
 checkArg :: Arg -> TM TEnv
 checkArg a = case a of
-    ValArg t id -> checkArg' t id
-    RefArg t id -> checkArg' t id
+    ValArg pos t id -> checkArg' pos t id
+    RefArg pos t id -> checkArg' pos t id
 
 checkArgs :: [Arg] -> TM TEnv
 checkArgs [] = ask
@@ -55,18 +56,19 @@ checkArgs (a:as) = do
     env' <- checkArg a
     local (const env') $ checkArgs as
 
-checkFnDef :: Type -> Ident -> [Arg] -> Block -> Ret -> TM TEnv
-checkFnDef t id as b r = do
+checkFnDef :: Pos -> TType -> Ident -> [Arg] -> Block -> Ret -> TM TEnv
+checkFnDef pos tt id as b r = do
+    let t = convTType tt
     (varEnv, funcEnv) <- ask
     if Map.member id funcEnv
-        then throwE $
+        then throwE pos $
             "function " ++ printTree id ++ " is already defined"
     else do
         env' <- checkArgs as
         env'' <- local (const env') $ checkBlock b False
         retT <- local (const env'') $ typeofRet r
         if retT /= t
-            then throwE $
+            then throwE pos $
                 "return type of function " ++ printTree id ++
                 " does not match function's signature"
         else do 
@@ -76,8 +78,8 @@ checkFnDef t id as b r = do
 
 checkTopDef :: TopDef -> TM TEnv
 checkTopDef d = case d of
-    FnDef t id as b r -> checkFnDef t id as b r
-    GlobVar t is -> checkSDecl t is
+    FnDef pos tt id as b r -> checkFnDef pos tt id as b r
+    GlobVar pos tt is -> checkSDecl pos tt is
 
 checkTopDefs :: [TopDef] -> TM TEnv
 checkTopDefs [] = ask
@@ -86,17 +88,20 @@ checkTopDefs (d:ds) = do
     local (const env') $ checkTopDefs ds
 
 checkProgr :: Progr -> TM ()
-checkProgr (Program ds) = do
+checkProgr (Program pos ds) = do
     (varEnv, funcEnv) <- checkTopDefs ds
     let main = Ident "main"
     if Map.notMember main funcEnv
-        then throwE "main function is not defined"
+        then throwE pos $
+            "main function is not defined"
     else do
         let mainT = funcEnv Map.! main
-        if fst mainT /= TVoid
-            then throwE "main function is not void type"
+        if fst mainT /= Void
+            then throwE pos $
+                "main function is not void type"
         else if snd mainT /= []
-            then throwE "main function cannot have arguments"
+            then throwE pos $
+                "main function cannot have arguments"
         else return ()
 
 typecheck :: Progr -> Result () -- ok

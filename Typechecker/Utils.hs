@@ -10,8 +10,24 @@ import Grammar.Abs
 
 import Types
 
-throwE :: String -> TM a
-throwE s = lift $ E.throwError s
+throwE :: Pos -> String -> TM a
+throwE pos s = lift $ E.throwError (posStr pos ++ s)
+
+posStr :: Pos -> String
+posStr Nothing = "in unknown position:\n"
+posStr (Just (l, c)) = "in line " ++ show l ++ ", column " ++ show c ++ ":\n"
+
+printType :: Type -> String
+printType Int = "int"
+printType Bool = "bool"
+printType String = "string"
+printType Void = "void"
+
+convTType :: TType -> Type
+convTType (TInt _) = Int
+convTType (TBool _) = Bool
+convTType (TString _) = String
+convTType (TVoid _) = Void
 
 idToStr :: [Ident] -> [String]
 idToStr [] = []

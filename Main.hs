@@ -38,14 +38,14 @@ main = do
       putStrLn "Typechecking..."
       case typecheck progr of
         Left err -> do
-          hPutStrLn stderr $ "Type error:\n" ++ err
+          hPutStrLn stderr $ "Type error " ++ err
           exitFailure
         Right _ -> do
           putStrLn "OK"
           putStrLn "Interpreting..."
           case interpret progr of
             Left err -> do
-                hPutStrLn stderr $ "Runtime error:\n" ++ err
+                hPutStrLn stderr $ "Runtime error " ++ err
                 exitFailure
             Right _ -> do
               putStrLn "OK"
