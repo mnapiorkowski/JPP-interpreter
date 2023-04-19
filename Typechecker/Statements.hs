@@ -18,51 +18,49 @@ checkSExpr e = do
     _ <- typeofExpr e
     ask
 
-checkNoInit :: Pos -> Type -> Ident -> TM TEnv
-checkNoInit pos t id = do
+setVar :: Type -> Ident -> TM TEnv
+setVar t id = do
     (varEnv, funcEnv) <- ask
-    -- if Map.member id varEnv
-    --     then throwE $
-    --         "variable " ++ printTree id ++ " is already defined"
-    -- else do
     let varEnv' = Map.insert id t varEnv
-    return (varEnv', funcEnv)
+    return (varEnv', funcEnv) 
 
-checkInit :: Pos -> Type -> Ident -> Expr -> TM TEnv
-checkInit pos t id e = do
+checkNoInit :: Pos -> Type -> Ident -> Bool -> TM TEnv
+checkNoInit pos t id isGlobal = do
     (varEnv, funcEnv) <- ask
-    -- if Map.member id varEnv
-    --     then throwE $
-    --         "variable " ++ printTree id ++ " is already defined"
-    -- else do
+    if (isGlobal && Map.member id varEnv)
+        then throwE pos $
+            "global variable " ++ printTree id ++ " is already defined"
+    else setVar t id
+
+checkInit :: Pos -> Type -> Ident -> Expr -> Bool -> TM TEnv
+checkInit pos t id e isGlobal = do
+    checkNoInit pos t id isGlobal
     exprT <- typeofExpr e
     if exprT /= t
         then throwE pos $ 
             "in definition of " ++ printType t ++ " " ++ printTree id ++ 
-            ":\nwrong type of expression:\n" ++ printTree e
-    else do
-        let varEnv' = Map.insert id t varEnv
-        return (varEnv', funcEnv)
+            ":\nwrong type of expression:" ++ printTree e
+    else setVar t id
 
-checkDecl :: Type -> Item -> TM TEnv
-checkDecl t i = case i of
-    NoInit pos id -> checkNoInit pos t id
-    Init pos id e -> checkInit pos t id e
+checkDecl :: Type -> Item -> Bool -> TM TEnv
+checkDecl t i isGlobal = case i of
+    NoInit pos id -> checkNoInit pos t id isGlobal
+    Init pos id e -> checkInit pos t id e isGlobal
 
-checkDecls :: Type -> [Item] -> TM TEnv
-checkDecls _ [] = ask
-checkDecls t (i:is) = do
-    env' <- checkDecl t i
-    local (const env') $ checkDecls t is
+checkDecls :: Type -> [Item] -> Bool -> TM TEnv
+checkDecls _ [] _ = ask
+checkDecls t (i:is) isGlobal = do
+    env' <- checkDecl t i isGlobal
+    local (const env') $ checkDecls t is isGlobal
 
-checkSDecl :: Pos -> TType -> [Item] -> TM TEnv
-checkSDecl pos tt is = do
+checkSDecl :: Pos -> TType -> [Item] -> Bool -> TM TEnv
+checkSDecl pos tt is isGlobal = do
     let t = convTType tt
     if t == Void
         then throwE pos $
             "cannot declare void-type variable: " ++ printTree is
     else do
-        env' <- checkDecls t is
+        env' <- checkDecls t is isGlobal
         return env'
 
 checkSAss :: Pos -> Ident -> Expr -> TM TEnv
@@ -104,11 +102,13 @@ checkSIf pos e b elifs isLoop = do
     checkIfExpr pos e
     checkBlock b isLoop
     checkElifs elifs isLoop
+    ask
 
 checkSIfElse :: Pos -> Expr -> Block -> [Elif] -> Block -> Bool -> TM TEnv
 checkSIfElse pos e bIf elifs bElse isLoop = do
     checkSIf pos e bIf elifs isLoop
     checkBlock bElse isLoop
+    ask
 
 checkSWhile :: Pos -> Expr -> Block -> TM TEnv
 checkSWhile pos e b = do
@@ -116,7 +116,9 @@ checkSWhile pos e b = do
     if t /= Bool
         then throwE pos $
             "expression in while statement is not bool-type: " ++ printTree e
-    else checkBlock b True
+    else do
+        checkBlock b True
+        ask
 
 checkSBreakContinue :: Pos -> Bool -> TM TEnv
 checkSBreakContinue pos isLoop = do
@@ -133,10 +135,10 @@ checkSPrint pos e = do
             "tried to print void-type expression: " ++ printTree e
     else ask
 
-checkStmt :: Stmt -> Bool -> TM TEnv -- TODO
+checkStmt :: Stmt -> Bool -> TM TEnv
 checkStmt s isLoop = case s of
     SExpr _ e -> checkSExpr e
-    SDecl pos t is -> checkSDecl pos t is
+    SDecl pos t is -> checkSDecl pos t is False
     SAss pos id e -> checkSAss pos id e
     SIncr pos id -> checkSIncrDecr pos id
     SDecr pos id -> checkSIncrDecr pos id

@@ -1,0 +1,6 @@
+int add(int a, void b):
+    return a + b;
+
+void main():
+    add(4, 2);
+    return;

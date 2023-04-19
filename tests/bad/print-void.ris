@@ -1,0 +1,6 @@
+void foo():
+    return;
+
+void main():
+    print foo();
+    return;

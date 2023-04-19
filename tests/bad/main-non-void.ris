@@ -1,0 +1,7 @@
+int add(int a, int b):
+    return a + b;
+
+int main():
+    let int a = 4;
+    let int b = 2;
+    return add(a,b);

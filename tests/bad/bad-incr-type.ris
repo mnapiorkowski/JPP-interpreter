@@ -1,0 +1,5 @@
+void main():
+    let string a = "foo";
+    a++;
+    print a;
+    return;

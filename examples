@@ -25,20 +25,19 @@ void locVar():
     globVar();
     print x; // 10
     return;
-/*
-void risotto(ref string s):
+
+string risotto(ref string s):
     s = s + "o";
     s = s + "t";
     turnback "Ris" + s;
-*/
-/*
+
 int fibo(int n):
     let int res = 1;
     if (n > 1):
         res = fibo(n - 1) + fibo(n - 2);
     endif;
     return res;
-*/
+
 void main():
     // Example 1.
     print sumEven(10); // 30
@@ -48,11 +47,11 @@ void main():
     print x; // 501
 
     // Example 3.
-    //let string s;
-    //risotto(s);
-    //print s; // "Risotto"
+    let string s;
+    print risotto(s); // "Risotto"
+    print s; // "otto"
 
     // Example 4.
-    //print fibo(13);
+    print fibo(13);
 
     return;

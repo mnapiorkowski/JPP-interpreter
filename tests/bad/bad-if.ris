@@ -1,0 +1,5 @@
+void main():
+    if ("foo"):
+        print true;
+    endif;
+    return;

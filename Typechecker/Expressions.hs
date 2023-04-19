@@ -23,10 +23,36 @@ checkUnaryOp pos t e = do
 
 checkBinaryOp :: Pos -> Type -> Expr -> Expr -> TM ()
 checkBinaryOp pos t e1 e2 = do
-    exprT1 <- typeofExpr e1
-    exprT2 <- typeofExpr e2
     checkUnaryOp pos t e1
     checkUnaryOp pos t e2
+
+typeofAddOp :: Pos -> Expr -> AddOp -> Expr -> TM Type
+typeofAddOp pos e1 op e2 = case op of
+        OMinus pos -> checkBinaryOp pos Int e1 e2 >> return Int
+        OPlus _ -> do
+            exprT1 <- typeofExpr e1
+            exprT2 <- typeofExpr e2
+            if (exprT1 == Int && exprT2 == Int)
+                then return Int
+            else if (exprT1 == String && exprT2 == String)
+                then return String
+            else throwE pos $
+                "operator '+' can be applied only on two ints or two strings"
+
+typeofMulOp :: Pos -> Expr -> MulOp -> Expr -> TM Type
+typeofMulOp pos e1 op e2 = case op of
+        ODiv pos -> checkBinaryOp pos Int e1 e2 >> return Int
+        OMod pos -> checkBinaryOp pos Int e1 e2 >> return Int
+        OTimes _ -> do
+            exprT1 <- typeofExpr e1
+            exprT2 <- typeofExpr e2
+            if (exprT1 == Int && exprT2 == Int)
+                then return Int
+            else if (exprT1 == Int && exprT2 == String) ||
+                    (exprT1 == String && exprT2 == Int)
+                then return String
+            else throwE pos $
+                " operator '*' can be applied only on two ints or string and int"
 
 typeofVar :: Pos -> Ident -> TM Type
 typeofVar pos id = do
@@ -59,11 +85,11 @@ typeofExpr e = case e of
     EString _ _ -> return String
     ENeg pos e -> checkUnaryOp pos Int e >> return Int
     ENot pos e -> checkUnaryOp pos Bool e >> return Bool
-    EMul pos e1 op e2 -> checkBinaryOp pos Int e1 e2 >> return Int
-    EAdd pos e1 op e2 -> checkBinaryOp pos Int e1 e2 >> return Int
     ERel pos e1 op e2 -> checkBinaryOp pos Int e1 e2 >> return Bool
     EAnd pos e1 e2 -> checkBinaryOp pos Bool e1 e2 >> return Bool
     EOr pos e1 e2 -> checkBinaryOp pos Bool e1 e2 >> return Bool
+    EAdd pos e1 op e2 -> typeofAddOp pos e1 op e2
+    EMul pos e1 op e2 -> typeofMulOp pos e1 op e2
     EVar pos id -> typeofVar pos id
     EApp pos id es -> typeofApp pos id es
 
