@@ -69,13 +69,13 @@ typeofApp pos id es = do
         then throwE pos $
             "function " ++ printTree id ++ " is not defined"
     else do
-        let funcT = funcEnv Map.! id
+        let (retT, argTs) = funcEnv Map.! id
         exprTs <- typeofExprs es
-        if snd funcT /= exprTs
+        if argTs /= exprTs
             then throwE pos $
                 "arguments to function " ++ printTree id ++ 
                 " do not match function's signature"
-        else return $ fst funcT
+        else return $ retT
 
 typeofExpr :: Expr -> TM Type
 typeofExpr e = case e of

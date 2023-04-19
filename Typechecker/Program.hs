@@ -34,6 +34,53 @@ typeofRet r = case r of
     Turnback _ e -> typeofExpr e
     VTurnback _ -> return Void
 
+setFunc :: Type -> Ident -> [Type] -> TM TEnv
+setFunc t id argTs = do
+    (varEnv, funcEnv) <- ask
+    let funcEnv' = Map.insert id (t, argTs) funcEnv
+    return (varEnv, funcEnv') 
+
+setFnDef :: Pos -> TType -> Ident -> [Arg] -> TM TEnv
+setFnDef pos tt id as = do
+    let t = convTType tt
+    (_, funcEnv) <- ask
+    if Map.member id funcEnv
+        then throwE pos $
+            "function " ++ printTree id ++ " is already defined"
+    else do
+        argTs <- typeofArgs as
+        setFunc t id argTs
+
+setGlobVar :: Pos -> Type -> Ident -> TM TEnv
+setGlobVar pos t id = do
+    (varEnv, _) <- ask
+    if Map.member id varEnv
+        then throwE pos $
+            "global variable " ++ printTree id ++ " is already defined"
+    else setVar t id
+
+setGlobVars :: Pos -> Type -> [Item] -> TM TEnv
+setGlobVars _ _ [] = ask
+setGlobVars pos t (i:is) = do
+    id <- case i of
+        NoInit _ id' -> return id'
+        Init _ id' _ -> return id'
+    env' <- setGlobVar pos t id
+    local (const env') $ setGlobVars pos t is
+
+setTopDef :: TopDef -> TM TEnv
+setTopDef d = case d of
+    FnDef pos tt id as _ _ -> setFnDef pos tt id as
+    GlobVar pos tt is -> do
+        let t = convTType tt
+        setGlobVars pos t is
+
+setTopDefs :: [TopDef] -> TM TEnv
+setTopDefs [] = ask
+setTopDefs (d:ds) = do
+    env' <- setTopDef d
+    local (const env') $ setTopDefs ds
+
 checkArg' :: Pos -> TType -> Ident -> TM TEnv
 checkArg' pos tt id = do
     let t = convTType tt
@@ -58,12 +105,6 @@ checkArgs (a:as) = do
     env' <- checkArg a
     local (const env') $ checkArgs as
 
-setFunc :: Type -> Ident -> [Type] -> TM TEnv
-setFunc t id argTs = do
-    (varEnv, funcEnv) <- ask
-    let funcEnv' = Map.insert id (t, argTs) funcEnv
-    return (varEnv, funcEnv') 
-
 mergeEnv :: TEnv -> TM TEnv
 mergeEnv (varEnv, funcEnv) = do
     (oldVarEnv, oldFuncEnv) <- ask
@@ -71,40 +112,41 @@ mergeEnv (varEnv, funcEnv) = do
     let newFuncEnv = Map.union oldFuncEnv funcEnv
     return (newVarEnv, newFuncEnv)
 
-checkFnDef :: Pos -> TType -> Ident -> [Arg] -> Block -> Ret -> TM TEnv
-checkFnDef pos tt id as b r = do
-    let t = convTType tt
+checkFnDef :: Pos -> Ident -> [Arg] -> Block -> Ret -> TM ()
+checkFnDef pos id as b r = do
     (varEnv, funcEnv) <- ask
-    if Map.member id funcEnv
+    let (t, argTs) = funcEnv Map.! id
+    env1 <- local (const (Map.empty, Map.empty)) $ checkArgs as
+    env2 <- local (const env1) $ setFunc t id argTs -- recursion
+    env3 <- local (const (varEnv, funcEnv)) $ mergeEnv env2
+    env4 <- local (const env3) $ checkBlock b False
+    retT <- local (const env4) $ typeofRet r
+    if retT /= t
         then throwE pos $
-            "function " ++ printTree id ++ " is already defined"
-    else do
-        argTs <- typeofArgs as
-        env1 <- local (const (Map.empty, Map.empty)) $ checkArgs as
-        env2 <- local (const env1) $ setFunc t id argTs -- recursion
-        env3 <- local (const (varEnv, funcEnv)) $ mergeEnv env2
-        env4 <- local (const env3) $ checkBlock b False
-        retT <- local (const env4) $ typeofRet r
-        if retT /= t
-            then throwE pos $
-                "return type of function " ++ printTree id ++
-                " does not match function's signature"
-        else setFunc t id argTs
+            "return type of function " ++ printTree id ++
+            " does not match function's signature"
+    else return ()
 
-checkTopDef :: TopDef -> TM TEnv
+checkGlobVar :: Pos -> TType -> [Item] -> TM ()
+checkGlobVar pos tt is = do
+    checkSDecl pos tt is
+    return ()
+
+checkTopDef :: TopDef -> TM ()
 checkTopDef d = case d of
-    FnDef pos tt id as b r -> checkFnDef pos tt id as b r
-    GlobVar pos tt is -> checkSDecl pos tt is True
+    FnDef pos tt id as b r -> checkFnDef pos id as b r
+    GlobVar pos tt is -> checkGlobVar pos tt is
 
-checkTopDefs :: [TopDef] -> TM TEnv
-checkTopDefs [] = ask
+checkTopDefs :: [TopDef] -> TM ()
+checkTopDefs [] = return ()
 checkTopDefs (d:ds) = do
-    env' <- checkTopDef d
-    local (const env') $ checkTopDefs ds
+    checkTopDef d
+    checkTopDefs ds
 
 checkProgr :: Progr -> TM ()
 checkProgr (Program pos ds) = do
-    (varEnv, funcEnv) <- checkTopDefs ds
+    (varEnv, funcEnv) <- setTopDefs ds
+    local (const (varEnv, funcEnv)) $ checkTopDefs ds
     let main = Ident "main"
     if Map.notMember main funcEnv
         then throwE pos $
