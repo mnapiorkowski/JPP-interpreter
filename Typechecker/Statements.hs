@@ -8,10 +8,10 @@ import qualified Data.Map as Map
 import Grammar.Abs
 import Grammar.Print ( printTree )
 
-import Typechecker.Utils
-import Typechecker.Expressions ( typeofExpr, typeofVar, checkUnaryOp )
-
 import Types
+import Utils
+
+import Typechecker.Expressions ( typeofExpr, typeofVar, checkUnaryOp )
 
 checkSExpr :: Expr -> TM TEnv  
 checkSExpr e = do
@@ -52,7 +52,7 @@ checkDecls t (i:is) = do
 checkSDecl :: Pos -> TType -> [Item] -> TM TEnv
 checkSDecl pos tt is = do
     let t = convTType tt
-    if t == Void
+    if t == VoidT
         then throwE pos $
             "cannot declare void-type variable: " ++ printTree is
     else do
@@ -68,7 +68,7 @@ checkSAss pos id e = do
 checkSIncrDecr :: Pos -> Ident -> TM TEnv
 checkSIncrDecr pos id = do
     t <- typeofVar pos id
-    if t /= Int
+    if t /= IntT
         then throwE pos $
             "increment or decrement operator applied to non-int-type variable "
             ++ printTree id
@@ -77,7 +77,7 @@ checkSIncrDecr pos id = do
 checkIfExpr :: Pos -> Expr -> TM ()
 checkIfExpr pos e = do
     t <- typeofExpr e
-    if t /= Bool
+    if t /= BoolT
         then throwE pos $
             "expression in if statement is not bool-type: " ++ printTree e
     else return ()
@@ -109,7 +109,7 @@ checkSIfElse pos e bIf elifs bElse isLoop = do
 checkSWhile :: Pos -> Expr -> Block -> TM TEnv
 checkSWhile pos e b = do
     t <- typeofExpr e
-    if t /= Bool
+    if t /= BoolT
         then throwE pos $
             "expression in while statement is not bool-type: " ++ printTree e
     else do
@@ -126,7 +126,7 @@ checkSBreakContinue pos isLoop = do
 checkSPrint :: Pos -> Expr -> TM TEnv
 checkSPrint pos e = do
     t <- typeofExpr e
-    if t == Void
+    if t == VoidT
         then throwE pos $
             "tried to print void-type expression: " ++ printTree e
     else ask

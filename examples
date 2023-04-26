@@ -1,3 +1,8 @@
+string risotto(ref string s):
+    s = s + "o";
+    s = s + "t";
+    turnback "Ris" + s;
+
 int sumEven(int x):
     let int i = 0;
     let int sum = 0;
@@ -25,11 +30,6 @@ void locVar():
     globVar();
     print x; // 10
     return;
-
-string risotto(ref string s):
-    s = s + "o";
-    s = s + "t";
-    turnback "Ris" + s;
 
 int fibo(int n):
     let int res = 1;

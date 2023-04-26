@@ -11,19 +11,29 @@ import Grammar.Abs (Ident, BNFC'Position)
 
 type Pos = BNFC'Position
 
-type Loc = Int
 type Result = Except String
 
--- interpreter
-data IVal = StringV String | IntV Int | BoolV Bool | VoidV
-type IEnv = Map Ident Loc
-type IStore = Map Loc IVal
-type IM a = StateT IStore (ReaderT IEnv Result) a -- interpreter monad
-
--- typechecker
-data Type = Int | String | Bool | Void
+data Type = IntT | StringT | BoolT | VoidT
     deriving (Eq) 
-type VarEnv = Map Ident Type
-type FuncEnv = Map Ident (Type, [Type])
-type TEnv = (VarEnv, FuncEnv)
+
+type TVarEnv = Map Ident Type
+type TFuncEnv = Map Ident (Type, [Type])
+type TEnv = (TVarEnv, TFuncEnv)
+
 type TM a = ReaderT TEnv Result a -- typechecker monad
+
+------
+
+data Val = IntV Int | StringV String | BoolV Bool | VoidV
+
+newtype Func = Func ([Val] -> IM Val)
+
+type Loc = Int
+
+type IVarEnv = Map Ident Loc
+type IFuncEnv = Map Ident Func
+type IEnv = (IVarEnv, IFuncEnv)
+
+type IStore = Map Loc Val
+
+type IM a = StateT IStore (ReaderT IEnv Result) a -- interpreter monad

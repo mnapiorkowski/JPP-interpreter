@@ -1,6 +1,5 @@
 module Typechecker.Program where
 
-import qualified Control.Monad.Except as E ( throwError )
 import Control.Monad.Reader
 
 import Data.Map (Map)
@@ -9,11 +8,11 @@ import qualified Data.Map as Map
 import Grammar.Abs
 import Grammar.Print ( printTree )
 
-import Typechecker.Utils
+import Types
+import Utils
+
 import Typechecker.Expressions ( typeofExpr )
 import Typechecker.Statements ( checkBlock, checkSDecl, setVar )
-
-import Types
 
 typeofArg :: Arg -> TM Type
 typeofArg a = case a of
@@ -30,9 +29,9 @@ typeofArgs (a:as) = do
 typeofRet :: Ret -> TM Type
 typeofRet r = case r of
     Return _ e -> typeofExpr e
-    VReturn _ -> return Void
+    VReturn _ -> return VoidT
     Turnback _ e -> typeofExpr e
-    VTurnback _ -> return Void
+    VTurnback _ -> return VoidT
 
 setFunc :: Type -> Ident -> [Type] -> TM TEnv
 setFunc t id argTs = do
@@ -84,7 +83,7 @@ setTopDefs (d:ds) = do
 checkArg' :: Pos -> TType -> Ident -> TM TEnv
 checkArg' pos tt id = do
     let t = convTType tt
-    if t == Void
+    if t == VoidT
         then throwE pos $
             "argument of a function cannot be void-type: " ++ printTree id
     else do
@@ -96,8 +95,8 @@ checkArg' pos tt id = do
 
 checkArg :: Arg -> TM TEnv
 checkArg a = case a of
-    ValArg pos t id -> checkArg' pos t id
-    RefArg pos t id -> checkArg' pos t id
+    ValArg pos tt id -> checkArg' pos tt id
+    RefArg pos tt id -> checkArg' pos tt id
 
 checkArgs :: [Arg] -> TM TEnv
 checkArgs [] = ask
@@ -152,16 +151,16 @@ checkProgr (Program pos ds) = do
         then throwE pos $
             "main function is not defined"
     else do
-        let mainT = funcEnv Map.! main
-        if fst mainT /= Void
+        let (retT, argTs) = funcEnv Map.! main
+        if retT /= VoidT
             then throwE pos $
                 "main function is not void-type"
-        else if snd mainT /= []
+        else if argTs /= []
             then throwE pos $
                 "main function cannot have arguments"
         else return ()
 
-typecheck :: Progr -> Result () -- ok
+typecheck :: Progr -> Result ()
 typecheck p = do
     let initEnv = (Map.empty, Map.empty)
     runReaderT (checkProgr p) initEnv
