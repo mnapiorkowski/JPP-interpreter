@@ -11,14 +11,32 @@ import Grammar.Abs
 import Types
 import Utils
 
+import Interpreter.Expressions ( evalExpr, setEvaledVar, setNotEvaledVar )
+import Interpreter.Statements ( execBlock )
+
 execFunc :: Block -> Ret -> IM Val
-execFunc b r = do
-    return VoidV -- TODO
+execFunc b (Return _ e) = do
+    env <- execBlock b
+    local (const env) $ evalExpr e
+
+execFunc b (VReturn _) = do
+    execBlock b
+    return VoidV
+
+execFunc b (Turnback _ e) = do
+    env <- execBlock b
+    env' <- local (const env) $ execBlock (reverseBlock b)
+    local (const env') $ evalExpr e
+
+execFunc b (VTurnback _) = do
+    env <- execBlock b
+    local (const env) $ execBlock (reverseBlock b)
+    return VoidV
 
 setArg :: Arg -> Val -> IM IEnv
 setArg a v = case a of 
-    ValArg _ _ id -> setVar id v
-    RefArg _ _ id -> setVar id v
+    ValArg _ _ id -> setEvaledVar id v
+    RefArg _ _ id -> setEvaledVar id v
 
 setArgs :: [Arg] -> [Val] -> IM IEnv
 setArgs [] [] = ask
@@ -41,14 +59,6 @@ setFunc id f = do
     let funcEnv' = Map.insert id f funcEnv
     return (varEnv, funcEnv')
 
-setVar :: Ident -> Val -> IM IEnv
-setVar id v = do
-    (varEnv, funcEnv) <- ask
-    let loc = Map.size varEnv
-    let varEnv' = Map.insert id loc varEnv
-    modify $ Map.insert loc v
-    return (varEnv', funcEnv) 
-
 setFnDef :: Ident -> [Arg] -> Block -> Ret -> IM IEnv
 setFnDef id as b r = do
     f <- newFunc id as b r
@@ -56,8 +66,8 @@ setFnDef id as b r = do
 
 setGlobVar :: Val -> Item -> IM IEnv
 setGlobVar v i = case i of
-    NoInit _ id -> setVar id v
-    Init _ id e -> setVar id v -- TODO setVar id (evalExpr e)
+    NoInit _ id -> setEvaledVar id v
+    Init _ id e -> setNotEvaledVar id e
 
 setGlobVars :: Val -> [Item] -> IM IEnv
 setGlobVars _ [] = ask
@@ -88,6 +98,6 @@ execProgr (Program _ ds) = do
 interpret :: Progr -> Result ()
 interpret p = do
     let initEnv = (Map.empty, Map.empty)
-    let initStore = Map.empty
+    let initStore = (Map.empty, 0)
     runReaderT (runStateT (execProgr p) initStore) initEnv
     return ()

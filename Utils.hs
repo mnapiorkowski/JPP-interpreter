@@ -20,11 +20,18 @@ posStr :: Pos -> String
 posStr Nothing = "in unknown position:\n"
 posStr (Just (l, c)) = "in line " ++ show l ++ ", column " ++ show c ++ ":\n"
 
-printType :: Type -> String
-printType IntT = "int"
-printType BoolT = "bool"
-printType StringT = "string"
-printType VoidT = "void"
+showType :: Type -> String
+showType IntT = "int"
+showType BoolT = "bool"
+showType StringT = "string"
+showType VoidT = "void"
+
+showVal :: Val -> String
+showVal (IntV i) = show i
+showVal (BoolV False) = "false"
+showVal (BoolV True) = "true"
+showVal (StringV s) = s
+showVal (VoidV) = ""
 
 convTType :: TType -> Type
 convTType (TInt _) = IntT
@@ -38,21 +45,5 @@ initVal (TBool _) = BoolV False
 initVal (TString _) = StringV ""
 initVal (TVoid _) = VoidV
 
-idToStr :: [Ident] -> [String]
-idToStr [] = []
-idToStr ((Ident s):is) = (s:(idToStr is))
-
-
--- lift $ throwE (listIdents env)
-listIdents :: TEnv -> String
-listIdents (varEnv, funcEnv) = "variables: " ++ vars ++ "\nfunctions: " ++ funcs
-    where 
-        vars = unwords $ idToStr (Map.keys varEnv)
-        funcs = unwords $ idToStr (Map.keys funcEnv)
-
-listIdents' :: IEnv -> String
-listIdents' (varEnv, funcEnv) = "variables: " ++ vars ++ "\nfunctions: " ++ funcs
-    where 
-        vars = unwords $ idToStr (Map.keys varEnv)
-        funcs = unwords $ idToStr (Map.keys funcEnv)
-
+reverseBlock :: Block -> Block
+reverseBlock (BBlock pos ss) = BBlock pos $ reverse ss

@@ -16,11 +16,11 @@ import qualified Interpreter.Program as I ( interpret )
 parse :: String -> Either String Progr
 parse s = pProgr (resolveLayout False $ myLexer s)
 
-typecheck :: Progr -> Either String ()
-typecheck p = runExcept $ T.typecheck p
+typecheck :: Progr -> IO (Either String ())
+typecheck p = runExceptT $ T.typecheck p
 
-interpret :: Progr -> Either String ()
-interpret p = runExcept $ I.interpret p
+interpret :: Progr -> IO (Either String ())
+interpret p = runExceptT $ I.interpret p
 
 main :: IO ()
 main = do
@@ -36,14 +36,16 @@ main = do
     Right progr -> do
       putStrLn "OK"
       putStrLn "Typechecking..."
-      case typecheck progr of
+      check <- typecheck progr
+      case check of
         Left err -> do
           hPutStrLn stderr $ "Type error " ++ err
           exitFailure
         Right _ -> do
           putStrLn "OK"
           putStrLn "Interpreting..."
-          case interpret progr of
+          run <- interpret progr
+          case run of
             Left err -> do
                 hPutStrLn stderr $ "Runtime error " ++ err
                 exitFailure

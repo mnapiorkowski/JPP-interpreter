@@ -17,7 +17,7 @@ checkUnaryOp pos t e = do
     if exprT /= t
         then throwE pos $
             "wrong type of expression: " ++ printTree e ++
-            "\nexpected type: " ++ printType t
+            "\nexpected type: " ++ showType t
     else return ()
 
 checkBinaryOp :: Pos -> Type -> Expr -> Expr -> TM ()
@@ -51,7 +51,7 @@ typeofMulOp pos e1 op e2 = case op of
                     (exprT1 == StringT && exprT2 == IntT)
                 then return StringT
             else throwE pos $
-                " operator '*' can be applied only on two ints or string and int"
+                "operator '*' can be applied only on two ints or string and int"
 
 typeofVar :: Pos -> Ident -> TM Type
 typeofVar pos id = do

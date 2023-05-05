@@ -7,11 +7,11 @@ import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Grammar.Abs (Ident, BNFC'Position)
+import Grammar.Abs (Ident, Expr, BNFC'Position)
 
 type Pos = BNFC'Position
 
-type Result = Except String
+type Result = ExceptT String IO
 
 data Type = IntT | StringT | BoolT | VoidT
     deriving (Eq) 
@@ -30,10 +30,12 @@ newtype Func = Func ([Val] -> IM Val)
 
 type Loc = Int
 
+data Var = Evaled Val | NotEvaled Expr
+
 type IVarEnv = Map Ident Loc
 type IFuncEnv = Map Ident Func
 type IEnv = (IVarEnv, IFuncEnv)
 
-type IStore = Map Loc Val
+type IStore = (Map Loc Var, Loc)
 
 type IM a = StateT IStore (ReaderT IEnv Result) a -- interpreter monad

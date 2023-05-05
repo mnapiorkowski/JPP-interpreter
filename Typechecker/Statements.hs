@@ -15,7 +15,7 @@ import Typechecker.Expressions ( typeofExpr, typeofVar, checkUnaryOp )
 
 checkSExpr :: Expr -> TM TEnv  
 checkSExpr e = do
-    _ <- typeofExpr e
+    typeofExpr e
     ask
 
 setVar :: Type -> Ident -> TM TEnv
@@ -34,7 +34,7 @@ checkInit pos t id e = do
     exprT <- typeofExpr e
     if exprT /= t
         then throwE pos $ 
-            "in definition of " ++ printType t ++ " " ++ printTree id ++ 
+            "in definition of " ++ showType t ++ " " ++ printTree id ++ 
             ":\nwrong type of expression:" ++ printTree e
     else setVar t id
 
