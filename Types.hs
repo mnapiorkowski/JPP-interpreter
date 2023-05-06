@@ -14,10 +14,14 @@ type Pos = BNFC'Position
 type Result = ExceptT String IO
 
 data Type = IntT | StringT | BoolT | VoidT
-    deriving (Eq) 
+    deriving Eq
+
+data RefType = IntRef | StringRef | BoolRef
+
+data ParamT = Type Type | RefType RefType
 
 type TVarEnv = Map Ident Type
-type TFuncEnv = Map Ident (Type, [Type])
+type TFuncEnv = Map Ident (Type, [ParamT])
 type TEnv = (TVarEnv, TFuncEnv)
 
 type TM a = ReaderT TEnv Result a -- typechecker monad
@@ -26,7 +30,9 @@ type TM a = ReaderT TEnv Result a -- typechecker monad
 
 data Val = IntV Int | StringV String | BoolV Bool | VoidV
 
-newtype Func = Func ([Val] -> IM Val)
+data Arg = ValArg Val | VarArg Loc
+
+newtype Func = Func ([Arg] -> IM Val)
 
 type Loc = Int
 

@@ -1,0 +1,8 @@
+void add(ref int a, int b):
+    a = a + b;
+    return;
+
+void main():
+    let string x = "foo";
+    add(x, 2);
+    return;

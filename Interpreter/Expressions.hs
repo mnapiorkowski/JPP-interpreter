@@ -11,22 +11,6 @@ import Grammar.Abs
 import Types
 import Utils
 
-setEvaledVar :: Ident -> Val -> IM IEnv
-setEvaledVar id v = do
-    (store, loc) <- get
-    (varEnv, funcEnv) <- ask
-    let varEnv' = Map.insert id loc varEnv
-    put $ (Map.insert loc (Evaled v) store, succ loc)
-    return (varEnv', funcEnv) 
-
-setNotEvaledVar :: Ident -> Expr -> IM IEnv
-setNotEvaledVar id e = do
-    (store, loc) <- get
-    (varEnv, funcEnv) <- ask
-    let varEnv' = Map.insert id loc varEnv
-    put $ (Map.insert loc (NotEvaled e) store, succ loc)
-    return (varEnv', funcEnv) 
-
 evalUnaryOp :: Expr -> IM Val
 evalUnaryOp e = do
     v <- evalExpr e
@@ -111,7 +95,7 @@ evalDivOp pos e1 op e2 = do
     v2 <- evalExpr e2
     case v2 of
         IntV 0 -> throwRuntimeE pos $ "cannot divide by zero"
-    evalBinaryOpII e1 op e2
+        _ -> evalBinaryOpII e1 op e2
 
 evalMulOp :: Expr -> MulOp -> Expr -> IM Val
 evalMulOp e1 op e2 = case op of
@@ -122,21 +106,38 @@ evalMulOp e1 op e2 = case op of
 evalVar :: Ident -> IM Val
 evalVar id = do
     (varEnv, _) <- ask
-    (store, _) <- get
+    (store, newloc) <- get
     let loc = varEnv Map.! id
     let var = store Map.! loc
     case var of
         Evaled v -> return v
         NotEvaled e -> do
             v <- evalExpr e
-            put $ (Map.insert loc (Evaled v) store, succ loc)
+            put $ (Map.insert loc (Evaled v) store, newloc)
             return v
+
+evalArg :: Expr -> IM Arg
+evalArg e = case e of
+    EVar _ id -> do
+        (varEnv, _) <- ask
+        let loc = varEnv Map.! id
+        return $ VarArg loc
+    _ -> do
+        v <- evalExpr e
+        return $ ValArg v
+
+evalArgs :: [Expr] -> IM [Arg]
+evalArgs [] = return []
+evalArgs (e:es) = do
+    a <- evalArg e
+    as <- evalArgs es
+    return (a:as)
 
 evalApp :: Ident -> [Expr] -> IM Val
 evalApp id es = do
     (_, funcEnv) <- ask
     let Func f = funcEnv Map.! id
-    args <- evalExprs es
+    args <- evalArgs es
     f args
 
 evalExpr :: Expr -> IM Val

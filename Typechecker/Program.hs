@@ -14,16 +14,16 @@ import Utils
 import Typechecker.Expressions ( typeofExpr )
 import Typechecker.Statements ( checkBlock, checkSDecl, setVar )
 
-typeofArg :: Arg -> TM Type
-typeofArg a = case a of
-    ValArg _ tt _ -> return $ convTType tt
-    RefArg _ tt _ -> return $ convTType tt
+typeofParam :: Param -> TM ParamT
+typeofParam a = case a of
+    ValParam _ tt _ -> return $ Type (convTType tt)
+    RefParam _ tt _ -> return $ RefType (convTTypeRef tt)
 
-typeofArgs :: [Arg] -> TM [Type]
-typeofArgs [] = return []
-typeofArgs (a:as) = do
-    t <- typeofArg a
-    ts <- typeofArgs as
+typeofParams :: [Param] -> TM [ParamT]
+typeofParams [] = return []
+typeofParams (p:ps) = do
+    t <- typeofParam p
+    ts <- typeofParams ps
     return (t:ts)
 
 typeofRet :: Ret -> TM Type
@@ -33,22 +33,22 @@ typeofRet r = case r of
     Turnback _ e -> typeofExpr e
     VTurnback _ -> return VoidT
 
-setFunc :: Type -> Ident -> [Type] -> TM TEnv
-setFunc t id argTs = do
+setFunc :: Type -> Ident -> [ParamT] -> TM TEnv
+setFunc t id paramTs = do
     (varEnv, funcEnv) <- ask
-    let funcEnv' = Map.insert id (t, argTs) funcEnv
+    let funcEnv' = Map.insert id (t, paramTs) funcEnv
     return (varEnv, funcEnv') 
 
-setFnDef :: Pos -> TType -> Ident -> [Arg] -> TM TEnv
-setFnDef pos tt id as = do
+setFnDef :: Pos -> TType -> Ident -> [Param] -> TM TEnv
+setFnDef pos tt id ps = do
     let t = convTType tt
     (_, funcEnv) <- ask
     if Map.member id funcEnv
         then throwE pos $
             "function " ++ printTree id ++ " is already defined"
     else do
-        argTs <- typeofArgs as
-        setFunc t id argTs
+        paramTs <- typeofParams ps
+        setFunc t id paramTs
 
 setGlobVar :: Pos -> Type -> Ident -> TM TEnv
 setGlobVar pos t id = do
@@ -80,29 +80,29 @@ setTopDefs (d:ds) = do
     env' <- setTopDef d
     local (const env') $ setTopDefs ds
 
-checkArg' :: Pos -> TType -> Ident -> TM TEnv
-checkArg' pos tt id = do
+checkParam' :: Pos -> TType -> Ident -> TM TEnv
+checkParam' pos tt id = do
     let t = convTType tt
     if t == VoidT
         then throwE pos $
-            "argument of a function cannot be void-type: " ++ printTree id
+            "parameter of a function cannot be void-type: " ++ printTree id
     else do
         (varEnv, _) <- ask
         if Map.member id varEnv
             then throwE pos $
-                "arguments cannot have the same identifiers: " ++ printTree id
+                "parameters cannot have the same identifiers: " ++ printTree id
         else setVar t id
 
-checkArg :: Arg -> TM TEnv
-checkArg a = case a of
-    ValArg pos tt id -> checkArg' pos tt id
-    RefArg pos tt id -> checkArg' pos tt id
+checkParam :: Param -> TM TEnv
+checkParam p = case p of
+    ValParam pos tt id -> checkParam' pos tt id
+    RefParam pos tt id -> checkParam' pos tt id
 
-checkArgs :: [Arg] -> TM TEnv
-checkArgs [] = ask
-checkArgs (a:as) = do
-    env' <- checkArg a
-    local (const env') $ checkArgs as
+checkParams :: [Param] -> TM TEnv
+checkParams [] = ask
+checkParams (p:ps) = do
+    env' <- checkParam p
+    local (const env') $ checkParams ps
 
 mergeEnv :: TEnv -> TM TEnv
 mergeEnv (varEnv, funcEnv) = do
@@ -111,12 +111,12 @@ mergeEnv (varEnv, funcEnv) = do
     let newFuncEnv = Map.union oldFuncEnv funcEnv
     return (newVarEnv, newFuncEnv)
 
-checkFnDef :: Pos -> Ident -> [Arg] -> Block -> Ret -> TM ()
-checkFnDef pos id as b r = do
+checkFnDef :: Pos -> Ident -> [Param] -> Block -> Ret -> TM ()
+checkFnDef pos id ps b r = do
     (varEnv, funcEnv) <- ask
-    let (t, argTs) = funcEnv Map.! id
-    env1 <- local (const (Map.empty, Map.empty)) $ checkArgs as
-    env2 <- local (const env1) $ setFunc t id argTs -- recursion
+    let (t, paramTs) = funcEnv Map.! id
+    env1 <- local (const (Map.empty, Map.empty)) $ checkParams ps
+    env2 <- local (const env1) $ setFunc t id paramTs -- recursion
     env3 <- local (const (varEnv, funcEnv)) $ mergeEnv env2
     env4 <- local (const env3) $ checkBlock b False
     retT <- local (const env4) $ typeofRet r
@@ -151,13 +151,13 @@ checkProgr (Program pos ds) = do
         then throwE pos $
             "main function is not defined"
     else do
-        let (retT, argTs) = funcEnv Map.! main
+        let (retT, paramTs) = funcEnv Map.! main
         if retT /= VoidT
             then throwE pos $
                 "main function is not void-type"
-        else if argTs /= []
+        else if not $ null paramTs
             then throwE pos $
-                "main function cannot have arguments"
+                "main function cannot have parameters"
         else return ()
 
 typecheck :: Progr -> Result ()

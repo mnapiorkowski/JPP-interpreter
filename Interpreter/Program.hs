@@ -11,8 +11,8 @@ import Grammar.Abs
 import Types
 import Utils
 
-import Interpreter.Expressions ( evalExpr, setEvaledVar, setNotEvaledVar )
-import Interpreter.Statements ( execBlock )
+import Interpreter.Expressions ( evalExpr )
+import Interpreter.Statements ( execBlock, newVar )
 
 execFunc :: Block -> Ret -> IM Val
 execFunc b (Return _ e) = do
@@ -33,22 +33,36 @@ execFunc b (VTurnback _) = do
     local (const env) $ execBlock (reverseBlock b)
     return VoidV
 
-setArg :: Arg -> Val -> IM IEnv
-setArg a v = case a of 
-    ValArg _ _ id -> setEvaledVar id v
-    RefArg _ _ id -> setEvaledVar id v
+newVarRef :: Ident -> Loc -> IM IEnv
+newVarRef id loc = do
+    (store, _) <- get
+    (varEnv, funcEnv) <- ask
+    let varEnv' = Map.insert id loc varEnv
+    return (varEnv', funcEnv)
 
-setArgs :: [Arg] -> [Val] -> IM IEnv
+setArg :: Param -> Arg -> IM IEnv
+setArg p a = case p of 
+    ValParam _ _ id -> case a of
+        ValArg v -> newVar id (Evaled v)
+        VarArg loc -> do
+            (store, _) <- get
+            let var = store Map.! loc
+            newVar id var
+    RefParam _ _ id -> case a of
+        ValArg v -> ask -- error, TODO: handle in Typechecker
+        VarArg loc -> newVarRef id loc -- TODO
+
+setArgs :: [Param] -> [Arg] -> IM IEnv
 setArgs [] [] = ask
-setArgs (a:as) (v:vs) = do
-    env' <- setArg a v
-    local (const env') $ setArgs as vs
+setArgs (p:ps) (a:as) = do
+    env' <- setArg p a
+    local (const env') $ setArgs ps as
 
-newFunc :: Ident -> [Arg] -> Block -> Ret -> IM Func
-newFunc id as b r = do
+newFunc :: Ident -> [Param] -> Block -> Ret -> IM Func
+newFunc id ps b r = do
     env <- ask
     let f args = do
-        env1 <- local (const env) $ setArgs as args
+        env1 <- local (const env) $ setArgs ps args
         env2 <- local (const env1) $ setFunc id (Func f)  -- recursion
         local (const env2) $ execFunc b r
     return $ Func f
@@ -59,15 +73,15 @@ setFunc id f = do
     let funcEnv' = Map.insert id f funcEnv
     return (varEnv, funcEnv')
 
-setFnDef :: Ident -> [Arg] -> Block -> Ret -> IM IEnv
-setFnDef id as b r = do
-    f <- newFunc id as b r
+setFnDef :: Ident -> [Param] -> Block -> Ret -> IM IEnv
+setFnDef id ps b r = do
+    f <- newFunc id ps b r
     setFunc id f
 
 setGlobVar :: Val -> Item -> IM IEnv
 setGlobVar v i = case i of
-    NoInit _ id -> setEvaledVar id v
-    Init _ id e -> setNotEvaledVar id e
+    NoInit _ id -> newVar id (Evaled v)
+    Init _ id e -> newVar id (NotEvaled e)
 
 setGlobVars :: Val -> [Item] -> IM IEnv
 setGlobVars _ [] = ask

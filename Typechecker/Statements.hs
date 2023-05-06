@@ -144,6 +144,7 @@ checkStmt s isLoop = case s of
     SBreak pos -> checkSBreakContinue pos isLoop
     SContinue pos -> checkSBreakContinue pos isLoop
     SPrint pos e -> checkSPrint pos e
+    SPrintLn pos e -> checkSPrint pos e
 
 checkStmts :: [Stmt] -> Bool -> TM TEnv
 checkStmts [] _ = ask

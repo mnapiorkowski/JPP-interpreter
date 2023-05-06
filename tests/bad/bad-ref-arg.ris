@@ -1,0 +1,7 @@
+void add(ref int a, int b):
+    a = a + b;
+    return;
+
+void main():
+    add(4, 2);
+    return;

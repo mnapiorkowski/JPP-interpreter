@@ -61,6 +61,37 @@ typeofVar pos id = do
             "variable " ++ printTree id ++ " is not defined"
     else return $ varEnv Map.! id
 
+checkParamArg :: Pos -> Ident -> ParamT -> Expr -> TM ()
+checkParamArg pos id p e = do
+    argT <- typeofExpr e
+    case p of
+        RefType paramT -> case e of
+            EVar _ id -> do
+                if not $ eqTypeRef argT paramT
+                    then throwE pos $
+                        "arguments to function " ++ printTree id ++ 
+                        " do not match function's signature"
+                else return ()
+            _ -> throwE pos $
+                    "non-variable argument passed as reference to function " ++ 
+                    printTree id
+        Type paramT -> do
+            if argT /= paramT
+                then throwE pos $
+                    "arguments to function " ++ printTree id ++ 
+                    " do not match function's signature"
+            else return ()
+
+checkParamsArgs :: Pos -> Ident -> [ParamT] -> [Expr] -> TM ()
+checkParamsArgs _ _ [] [] = return ()
+checkParamsArgs pos id [] _ = throwE pos $
+    "too many arguments to function " ++ printTree id
+checkParamsArgs pos id _ [] = throwE pos $
+    "too few arguments to function " ++ printTree id
+checkParamsArgs pos id (p:ps) (e:es) = do
+    checkParamArg pos id p e
+    checkParamsArgs pos id ps es
+
 typeofApp :: Pos -> Ident -> [Expr] -> TM Type
 typeofApp pos id es = do
     (varEnv, funcEnv) <- ask
@@ -71,13 +102,9 @@ typeofApp pos id es = do
         then throwE pos $
             "function " ++ printTree id ++ " is not defined"
     else do
-        let (retT, argTs) = funcEnv Map.! id
-        exprTs <- typeofExprs es
-        if argTs /= exprTs
-            then throwE pos $
-                "arguments to function " ++ printTree id ++ 
-                " do not match function's signature"
-        else return $ retT
+        let (retT, paramTs) = funcEnv Map.! id
+        checkParamsArgs pos id paramTs es
+        return retT
 
 typeofExpr :: Expr -> TM Type
 typeofExpr e = case e of

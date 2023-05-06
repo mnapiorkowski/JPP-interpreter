@@ -39,11 +39,22 @@ convTType (TBool _) = BoolT
 convTType (TString _) = StringT
 convTType (TVoid _) = VoidT
 
+convTTypeRef :: TType -> RefType
+convTTypeRef (TInt _) = IntRef
+convTTypeRef (TBool _) = BoolRef
+convTTypeRef (TString _) = StringRef
+
 initVal :: TType -> Val
 initVal (TInt _) = IntV 0
 initVal (TBool _) = BoolV False
 initVal (TString _) = StringV ""
 initVal (TVoid _) = VoidV
+
+eqTypeRef :: Type -> RefType -> Bool
+eqTypeRef IntT IntRef = True
+eqTypeRef BoolT BoolRef = True
+eqTypeRef StringT StringRef = True
+eqTypeRef _ _ = False
 
 reverseBlock :: Block -> Block
 reverseBlock (BBlock pos ss) = BBlock pos $ reverse ss

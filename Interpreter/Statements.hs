@@ -11,53 +11,99 @@ import Grammar.Abs
 import Types
 import Utils
 
-import Interpreter.Expressions ( evalExpr, evalVar, setEvaledVar )
+import Interpreter.Expressions ( evalExpr, evalVar )
+
+newVar :: Ident -> Var -> IM IEnv
+newVar id var = do
+    (store, newloc) <- get
+    (varEnv, funcEnv) <- ask
+    let varEnv' = Map.insert id newloc varEnv
+    put $ (Map.insert newloc var store, succ newloc)
+    return (varEnv', funcEnv)
+
+updateVar :: Ident -> Var -> IM IEnv
+updateVar id var = do
+    (store, newloc) <- get
+    env@(varEnv, _) <- ask
+    let loc = varEnv Map.! id 
+    put $ (Map.insert loc var store, newloc)
+    return env
 
 execSExpr :: Expr -> IM IEnv
 execSExpr e = do
     evalExpr e
     ask
 
-setVar :: Val -> Item -> IM IEnv
-setVar v i = case i of
-    NoInit _ id -> setEvaledVar id v
+execDecl :: Val -> Item -> IM IEnv
+execDecl v i = case i of
+    NoInit _ id -> newVar id (Evaled v)
     Init _ id e -> do
         v' <- evalExpr e
-        setEvaledVar id v'
+        newVar id (Evaled v')
 
-setVars :: Val -> [Item] -> IM IEnv
-setVars _ [] = ask
-setVars v (i:is) = do
-    env' <- setVar v i
-    local (const env') $ setVars v is
+execDecls :: Val -> [Item] -> IM IEnv
+execDecls _ [] = ask
+execDecls v (i:is) = do
+    env' <- execDecl v i
+    local (const env') $ execDecls v is
 
 execSDecl :: TType -> [Item] -> IM IEnv
 execSDecl tt is = do
     let v = initVal tt
-    setVars v is
+    execDecls v is
 
 execSAss :: Ident -> Expr -> IM IEnv
 execSAss id e = do
-    (varEnv, funcEnv) <- ask
-    (store, loc') <- get
     v <- evalExpr e
-    let loc = varEnv Map.! id
-    put $ (Map.insert loc (Evaled v) store, loc')
-    return (varEnv, funcEnv)
+    updateVar id (Evaled v)
 
 execSIncrDecr :: Ident -> (Int -> Int -> Int) -> IM IEnv
 execSIncrDecr id op = do
-    (varEnv, funcEnv) <- ask
-    (store, loc') <- get
     v <- evalVar id
     v' <- case v of
         IntV i -> return $ IntV (i `op` 1)
-    let loc = varEnv Map.! id
-    put $ (Map.insert loc (Evaled v') store, loc')
-    return (varEnv, funcEnv)
+    updateVar id (Evaled v')
+
+execElifs :: [Elif] -> Block -> IM IEnv
+execElifs [] bElse = execBlock bElse
+execElifs ((SElif _ e b):elifs) bElse = execSIfElse e b elifs bElse
+
+execSIf :: Expr -> Block -> [Elif] -> IM IEnv
+execSIf e b elifs = execSIfElse e b elifs (BBlock Nothing [])
+
+execSIfElse :: Expr -> Block -> [Elif] -> Block -> IM IEnv
+execSIfElse e bIf elifs bElse = do
+    v <- evalExpr e
+    cond <- case v of
+        BoolV cond -> return cond
+    if cond
+        then execBlock bIf
+    else execElifs elifs bElse
+
+execSWhile :: Expr -> Block -> IM IEnv
+execSWhile e b = do
+    v <- evalExpr e
+    cond <- case v of
+        BoolV cond -> return cond
+    if cond then do
+        execBlock b
+        execSWhile e b
+    else ask
+
+execSBreak :: IM IEnv
+execSBreak = ask
+
+execSContinue :: IM IEnv
+execSContinue = ask
 
 execSPrint :: Expr -> IM IEnv
 execSPrint e = do
+    v <- evalExpr e
+    liftIO $ putStr $ showVal v
+    ask
+
+execSPrintLn :: Expr -> IM IEnv
+execSPrintLn e = do
     v <- evalExpr e
     liftIO $ putStrLn $ showVal v
     ask
@@ -69,12 +115,13 @@ execStmt s = case s of
     SAss _ id e -> execSAss id e
     SIncr _ id -> execSIncrDecr id (+)
     SDecr _ id -> execSIncrDecr id (-)
-    SIf _ e b elifs -> ask
-    SIfElse _ e bIf elifs bElse -> ask
-    SWhile _ e b -> ask
-    SBreak _ -> ask
-    SContinue _ -> ask
+    SIf _ e b elifs -> execSIf e b elifs
+    SIfElse _ e bIf elifs bElse -> execSIfElse e bIf elifs bElse
+    SWhile _ e b -> execSWhile e b
+    SBreak _ -> execSBreak
+    SContinue _ -> execSContinue
     SPrint _ e -> execSPrint e
+    SPrintLn _ e -> execSPrintLn e
 
 execStmts :: [Stmt] -> IM IEnv
 execStmts [] = ask
