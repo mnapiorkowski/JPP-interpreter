@@ -16,15 +16,15 @@ import Interpreter.Expressions ( evalExpr, evalVar )
 newVar :: Ident -> Var -> IM IEnv
 newVar id var = do
     (store, newloc) <- get
-    (varEnv, funcEnv) <- ask
+    (varEnv, funcEnv, ctrl) <- ask
     let varEnv' = Map.insert id newloc varEnv
     put $ (Map.insert newloc var store, succ newloc)
-    return (varEnv', funcEnv)
+    return (varEnv', funcEnv, ctrl)
 
 updateVar :: Ident -> Var -> IM IEnv
 updateVar id var = do
     (store, newloc) <- get
-    env@(varEnv, _) <- ask
+    env@(varEnv, _, _) <- ask
     let loc = varEnv Map.! id 
     put $ (Map.insert loc var store, newloc)
     return env
@@ -80,21 +80,39 @@ execSIfElse e bIf elifs bElse = do
         then execBlock bIf
     else execElifs elifs bElse
 
+execWhileStmts :: [Stmt] -> IM IEnv
+execWhileStmts [] = ask
+execWhileStmts (s:ss) = do
+    env@(varEnv, funcEnv, ctrl) <- execStmt s
+    case ctrl of
+        Just Break -> return (varEnv, funcEnv, Just Break)
+        Just Continue -> return (varEnv, funcEnv, Nothing)
+        Nothing -> local (const env) $ execWhileStmts ss
+
+execWhileBlock :: Block -> IM IEnv
+execWhileBlock (BBlock _ ss) = execWhileStmts ss
+
 execSWhile :: Expr -> Block -> IM IEnv
 execSWhile e b = do
     v <- evalExpr e
     cond <- case v of
         BoolV cond -> return cond
     if cond then do
-        execBlock b
-        execSWhile e b
+        (varEnv, funcEnv, ctrl) <- execWhileBlock b
+        case ctrl of
+            Just Break -> return (varEnv, funcEnv, Nothing)
+            _ -> execSWhile e b
     else ask
 
 execSBreak :: IM IEnv
-execSBreak = ask
+execSBreak = do
+    (varEnv, funcEnv, _) <- ask
+    return (varEnv, funcEnv, Just Break)
 
 execSContinue :: IM IEnv
-execSContinue = ask
+execSContinue = do
+    (varEnv, funcEnv, _) <- ask
+    return (varEnv, funcEnv, Just Continue)
 
 execSPrint :: Expr -> IM IEnv
 execSPrint e = do

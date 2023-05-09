@@ -1,0 +1,2 @@
+Type error in line 2, column 11:
+operator '*' can be applied only on two ints or string and int

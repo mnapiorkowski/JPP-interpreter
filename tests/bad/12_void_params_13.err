@@ -1,0 +1,2 @@
+Type error in line 1, column 16:
+parameter of a function cannot be void-type: b

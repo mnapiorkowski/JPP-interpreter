@@ -1,0 +1,11 @@
+void main():
+    let bool a;
+    let bool b = true;
+
+    println not a;
+    println not b;
+    println a and b;
+    println a or b;
+    println a or b and not b;
+
+    return;

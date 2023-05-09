@@ -1,0 +1,18 @@
+global int x = 42;
+
+void glob_var():
+    x = x + 1;
+    println x; // 43
+    return;
+
+void loc_var():
+    let int x = 10;
+    glob_var();
+    println x; // 10
+    return;
+
+void main():
+    println x; // 42
+    loc_var();
+    println x; // 43
+    return;

@@ -36,7 +36,8 @@ typeofAddOp pos e1 op e2 = case op of
             else if (exprT1 == StringT && exprT2 == StringT)
                 then return StringT
             else throwE pos $
-                "operator '+' can be applied only on two ints or two strings"
+                "operator '+' applied to types " ++ showType exprT1 ++
+                " and " ++ showType exprT2
 
 typeofMulOp :: Pos -> Expr -> MulOp -> Expr -> TM Type
 typeofMulOp pos e1 op e2 = case op of
@@ -51,7 +52,8 @@ typeofMulOp pos e1 op e2 = case op of
                     (exprT1 == StringT && exprT2 == IntT)
                 then return StringT
             else throwE pos $
-                "operator '*' can be applied only on two ints or string and int"
+                "operator '*' applied to types " ++ showType exprT1 ++
+                " and " ++ showType exprT2
 
 typeofVar :: Pos -> Ident -> TM Type
 typeofVar pos id = do
@@ -97,7 +99,7 @@ typeofApp pos id es = do
     (varEnv, funcEnv) <- ask
     if id == Ident "main"
         then throwE pos $
-            "cannot call main function"
+            "called main function"
     else if Map.notMember id funcEnv
         then throwE pos $
             "function " ++ printTree id ++ " is not defined"

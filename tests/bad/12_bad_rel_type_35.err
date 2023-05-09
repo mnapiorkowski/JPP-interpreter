@@ -1,0 +1,3 @@
+Type error in line 2, column 11:
+wrong type of expression: "foo"
+expected type: int

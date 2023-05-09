@@ -1,0 +1,2 @@
+Type error in line 1, column 16:
+parameters cannot have the same identifiers: a

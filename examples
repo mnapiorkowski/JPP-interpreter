@@ -45,8 +45,9 @@ void swap (ref int a, ref int b):
     return;
 
 void main():
+
     // Example 1.
-    //print sumEven(10); // 30
+    println sumEven(10); // 30
 
     // Example 2.
     locVar();

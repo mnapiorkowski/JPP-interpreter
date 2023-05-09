@@ -1,0 +1,20 @@
+void main():
+    let int a = 42;
+    let int b = 10;
+    
+    println -a;
+    println a + b;
+    println a - b;
+    println a * b;
+    println a / b;
+    println a % b;
+    println a + b * a;
+    
+    println a != b;
+    println a == b;
+    println a > b;
+    println a >= b;
+    println a < b;
+    println a <= b;
+
+    return;

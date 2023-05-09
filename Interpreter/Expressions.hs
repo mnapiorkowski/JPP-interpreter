@@ -105,7 +105,7 @@ evalMulOp e1 op e2 = case op of
 
 evalVar :: Ident -> IM Val
 evalVar id = do
-    (varEnv, _) <- ask
+    (varEnv, _, _) <- ask
     (store, newloc) <- get
     let loc = varEnv Map.! id
     let var = store Map.! loc
@@ -119,7 +119,7 @@ evalVar id = do
 evalArg :: Expr -> IM Arg
 evalArg e = case e of
     EVar _ id -> do
-        (varEnv, _) <- ask
+        (varEnv, _, _) <- ask
         let loc = varEnv Map.! id
         return $ VarArg loc
     _ -> do
@@ -135,7 +135,7 @@ evalArgs (e:es) = do
 
 evalApp :: Ident -> [Expr] -> IM Val
 evalApp id es = do
-    (_, funcEnv) <- ask
+    (_, funcEnv, _) <- ask
     let Func f = funcEnv Map.! id
     args <- evalArgs es
     f args

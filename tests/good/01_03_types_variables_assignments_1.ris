@@ -1,0 +1,23 @@
+void main():
+    let int a;
+    println a;
+
+    a = 42;
+    println a;
+
+    a++;
+    println a;
+
+    a--;
+    println a;
+
+    let bool b;
+    println b;
+    
+    b = true;
+    println b;
+    
+    let string c = "foo";
+    println c;
+
+    return;

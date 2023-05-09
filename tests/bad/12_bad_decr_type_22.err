@@ -1,0 +1,2 @@
+Type error in line 3, column 5:
+increment or decrement operator applied to non-int-type variable a

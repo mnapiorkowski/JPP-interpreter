@@ -38,9 +38,13 @@ type Loc = Int
 
 data Var = Evaled Val | NotEvaled Expr
 
+data LoopCtrl = Break | Continue
+
+type Ctrl = Maybe LoopCtrl
+
 type IVarEnv = Map Ident Loc
 type IFuncEnv = Map Ident Func
-type IEnv = (IVarEnv, IFuncEnv)
+type IEnv = (IVarEnv, IFuncEnv, Ctrl)
 
 type IStore = (Map Loc Var, Loc)
 

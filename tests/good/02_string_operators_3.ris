@@ -1,0 +1,9 @@
+void main():
+    let string a = "foo";
+    let string b = "bar";
+
+    println a + b;
+    println a * 4;
+    println a * 4 + b * 2;
+
+    return;

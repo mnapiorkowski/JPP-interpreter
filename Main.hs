@@ -28,26 +28,20 @@ main = do
   input <- case args of
     []         -> getContents
     (path:_)   -> readFile path
-  putStrLn "Parsing..."
   case parse input of
     Left err -> do
       hPutStrLn stderr err
       exitFailure
     Right progr -> do
-      putStrLn "OK"
-      putStrLn "Typechecking..."
       check <- typecheck progr
       case check of
         Left err -> do
           hPutStrLn stderr $ "Type error " ++ err
           exitFailure
         Right _ -> do
-          putStrLn "OK"
-          putStrLn "Interpreting..."
           run <- interpret progr
           case run of
             Left err -> do
                 hPutStrLn stderr $ "Runtime error " ++ err
                 exitFailure
-            Right _ -> do
-              putStrLn "OK"
+            Right _ -> return ()

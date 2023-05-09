@@ -1,0 +1,25 @@
+void main():
+    let int i = -11;
+    while (i < 10):
+        i++;
+        print i;
+        if (i < 0):
+            print ": negative";
+            if (i % 2 == 0):
+                println " even";
+            else:
+                println " odd";
+            endif;
+        elif (i > 0):
+            print ": positive";
+            if (i % 2 == 0):
+                println " even";
+            else:
+                println " odd";
+            endif;
+        else:
+            println ": zero";
+        endif;
+    endwhile;
+    
+    return;

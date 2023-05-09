@@ -1,0 +1,2 @@
+Type error in line 2, column 5:
+expression in if statement is not bool-type: "foo"

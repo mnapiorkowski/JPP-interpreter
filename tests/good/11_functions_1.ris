@@ -1,0 +1,21 @@
+int add(int a, int b):
+    return a + b;
+
+bool triple_alternative(bool a, bool b, bool c):
+    return a or b or c;
+
+string concat(string a, string b):
+    return a + b;
+
+void print_all(int a, bool b, string c):
+    println a;
+    println b;
+    println c;
+    return;
+
+void main():
+    println add(4, 2);
+    println concat("foo", "bar");
+    println triple_alternative(false, false, true);
+    print_all(4, true, "foo");
+    return;

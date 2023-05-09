@@ -1,0 +1,2 @@
+Type error in line 5, column 5:
+tried to print void-type expression: foo ()

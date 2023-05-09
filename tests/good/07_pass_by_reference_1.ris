@@ -1,0 +1,19 @@
+void swap (ref string a, ref string b):
+    let string c = a;
+    a = b;
+    b = c;
+
+    println a;
+    println b;
+
+    return;
+
+void main():
+    let string s1 = "first";
+    let string s2 = "second"
+
+    swap(s1, s2);
+    println s1;
+    println s2;
+
+    return;

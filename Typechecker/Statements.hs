@@ -35,7 +35,7 @@ checkInit pos t id e = do
     if exprT /= t
         then throwE pos $ 
             "in definition of " ++ showType t ++ " " ++ printTree id ++ 
-            ":\nwrong type of expression:" ++ printTree e
+            " wrong type of expression: " ++ printTree e
     else setVar t id
 
 checkDecl :: Type -> Item -> TM TEnv
@@ -54,7 +54,7 @@ checkSDecl pos tt is = do
     let t = convTType tt
     if t == VoidT
         then throwE pos $
-            "cannot declare void-type variable: " ++ printTree is
+            "declared void-type variable: " ++ printTree is
     else do
         env' <- checkDecls t is
         return env'

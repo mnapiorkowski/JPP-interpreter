@@ -55,7 +55,7 @@ setGlobVar pos t id = do
     (varEnv, _) <- ask
     if Map.member id varEnv
         then throwE pos $
-            "global variable " ++ printTree id ++ " is already defined"
+            "global variable " ++ printTree id ++ " is already declared"
     else setVar t id
 
 setGlobVars :: Pos -> Type -> [Item] -> TM TEnv
@@ -119,7 +119,11 @@ checkFnDef pos id ps b r = do
     env2 <- local (const env1) $ setFunc t id paramTs -- recursion
     env3 <- local (const (varEnv, funcEnv)) $ mergeEnv env2
     env4 <- local (const env3) $ checkBlock b False
-    retT <- local (const env4) $ typeofRet r
+    env5 <- case r of
+        Turnback _ _ -> local (const env4) $ checkBlock (reverseBlock b) False
+        VTurnback _ -> local (const env4) $ checkBlock (reverseBlock b) False
+        _ -> return env4
+    retT <- local (const env5) $ typeofRet r
     if retT /= t
         then throwE pos $
             "return type of function " ++ printTree id ++
@@ -157,7 +161,7 @@ checkProgr (Program pos ds) = do
                 "main function is not void-type"
         else if not $ null paramTs
             then throwE pos $
-                "main function cannot have parameters"
+                "main function has more than zero parameters"
         else return ()
 
 typecheck :: Progr -> Result ()

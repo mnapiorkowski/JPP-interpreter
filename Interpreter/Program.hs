@@ -36,9 +36,9 @@ execFunc b (VTurnback _) = do
 newVarRef :: Ident -> Loc -> IM IEnv
 newVarRef id loc = do
     (store, _) <- get
-    (varEnv, funcEnv) <- ask
+    (varEnv, funcEnv, ctrl) <- ask
     let varEnv' = Map.insert id loc varEnv
-    return (varEnv', funcEnv)
+    return (varEnv', funcEnv, ctrl)
 
 setArg :: Param -> Arg -> IM IEnv
 setArg p a = case p of 
@@ -49,8 +49,7 @@ setArg p a = case p of
             let var = store Map.! loc
             newVar id var
     RefParam _ _ id -> case a of
-        ValArg v -> ask -- error, TODO: handle in Typechecker
-        VarArg loc -> newVarRef id loc -- TODO
+        VarArg loc -> newVarRef id loc
 
 setArgs :: [Param] -> [Arg] -> IM IEnv
 setArgs [] [] = ask
@@ -60,8 +59,8 @@ setArgs (p:ps) (a:as) = do
 
 newFunc :: Ident -> [Param] -> Block -> Ret -> IM Func
 newFunc id ps b r = do
-    env <- ask
     let f args = do
+        env <- ask
         env1 <- local (const env) $ setArgs ps args
         env2 <- local (const env1) $ setFunc id (Func f)  -- recursion
         local (const env2) $ execFunc b r
@@ -69,9 +68,9 @@ newFunc id ps b r = do
 
 setFunc :: Ident -> Func -> IM IEnv
 setFunc id f = do
-    (varEnv, funcEnv) <- ask
+    (varEnv, funcEnv, ctrl) <- ask
     let funcEnv' = Map.insert id f funcEnv
-    return (varEnv, funcEnv')
+    return (varEnv, funcEnv', ctrl)
 
 setFnDef :: Ident -> [Param] -> Block -> Ret -> IM IEnv
 setFnDef id ps b r = do
@@ -104,14 +103,14 @@ setTopDefs (d:ds) = do
 
 execProgr :: Progr -> IM ()
 execProgr (Program _ ds) = do
-    (varEnv, funcEnv) <- setTopDefs ds
+    env@(_, funcEnv, _) <- setTopDefs ds
     let Func main = funcEnv Map.! (Ident "main")
-    local (const (varEnv, funcEnv)) $ main []
+    local (const env) $ main []
     return ()
 
 interpret :: Progr -> Result ()
 interpret p = do
-    let initEnv = (Map.empty, Map.empty)
+    let initEnv = (Map.empty, Map.empty, Nothing)
     let initStore = (Map.empty, 0)
     runReaderT (runStateT (execProgr p) initStore) initEnv
     return ()

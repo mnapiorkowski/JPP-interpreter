@@ -1,0 +1,28 @@
+void foo():
+    let int i;
+    while (i < 10):
+        i++;
+        println i;
+    endwhile;
+    i = 5;
+    turnback;
+
+string risotto(ref string s):
+    s = s + "o";
+    s = s + "t";
+    turnback "Ris" + s;
+
+int add_twice(int a, int b):
+    a = a + b;
+    turnback a;
+
+void main():
+    foo();
+
+    let string s;
+    println risotto(s);
+    println s;
+
+    println add_twice(4, 2);
+
+    turnback;
