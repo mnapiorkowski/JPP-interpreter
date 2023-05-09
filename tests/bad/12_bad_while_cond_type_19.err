@@ -1,2 +1,2 @@
 Type error in line 2, column 5:
-expression in while statement is not bool-type: 42
+condition in while statement is not bool-type: 42

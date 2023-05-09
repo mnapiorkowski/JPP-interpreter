@@ -1,2 +1,2 @@
 Type error in line 1, column 1:
-main function is not void-type
+main function must be void-type

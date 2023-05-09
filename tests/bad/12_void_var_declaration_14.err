@@ -1,2 +1,2 @@
 Type error in line 2, column 5:
-cannot declare void-type variable: a
+declared void-type variable 'a'

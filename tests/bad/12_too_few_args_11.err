@@ -1,2 +1,2 @@
 Type error in line 5, column 5:
-too few arguments to function add
+too few arguments passed to function 'add'

@@ -35,27 +35,27 @@ typeofRet r = case r of
 
 setFunc :: Type -> Ident -> [ParamT] -> TM TEnv
 setFunc t id paramTs = do
-    (varEnv, funcEnv) <- ask
+    (varEnv, funcEnv, inLoop) <- ask
     let funcEnv' = Map.insert id (t, paramTs) funcEnv
-    return (varEnv, funcEnv') 
+    return (varEnv, funcEnv', inLoop) 
 
 setFnDef :: Pos -> TType -> Ident -> [Param] -> TM TEnv
 setFnDef pos tt id ps = do
     let t = convTType tt
-    (_, funcEnv) <- ask
+    (_, funcEnv, _) <- ask
     if Map.member id funcEnv
         then throwE pos $
-            "function " ++ printTree id ++ " is already defined"
+            "function '" ++ printTree id ++ "' is already defined"
     else do
         paramTs <- typeofParams ps
         setFunc t id paramTs
 
 setGlobVar :: Pos -> Type -> Ident -> TM TEnv
 setGlobVar pos t id = do
-    (varEnv, _) <- ask
+    (varEnv, _, _) <- ask
     if Map.member id varEnv
         then throwE pos $
-            "global variable " ++ printTree id ++ " is already declared"
+            "global variable '" ++ printTree id ++ "' is already declared"
     else setVar t id
 
 setGlobVars :: Pos -> Type -> [Item] -> TM TEnv
@@ -64,8 +64,8 @@ setGlobVars pos t (i:is) = do
     id <- case i of
         NoInit _ id' -> return id'
         Init _ id' _ -> return id'
-    env' <- setGlobVar pos t id
-    local (const env') $ setGlobVars pos t is
+    env <- setGlobVar pos t id
+    local (const env) $ setGlobVars pos t is
 
 setTopDef :: TopDef -> TM TEnv
 setTopDef d = case d of
@@ -77,20 +77,21 @@ setTopDef d = case d of
 setTopDefs :: [TopDef] -> TM TEnv
 setTopDefs [] = ask
 setTopDefs (d:ds) = do
-    env' <- setTopDef d
-    local (const env') $ setTopDefs ds
+    env <- setTopDef d
+    local (const env) $ setTopDefs ds
 
 checkParam' :: Pos -> TType -> Ident -> TM TEnv
 checkParam' pos tt id = do
     let t = convTType tt
     if t == VoidT
         then throwE pos $
-            "parameter of a function cannot be void-type: " ++ printTree id
+            "function parameter '" ++ printTree id ++ "' is void-type"
     else do
-        (varEnv, _) <- ask
+        (varEnv, _, _) <- ask
         if Map.member id varEnv
             then throwE pos $
-                "parameters cannot have the same identifiers: " ++ printTree id
+                "function parameters have the same identifiers '" ++ 
+                printTree id ++ "'"
         else setVar t id
 
 checkParam :: Param -> TM TEnv
@@ -101,33 +102,33 @@ checkParam p = case p of
 checkParams :: [Param] -> TM TEnv
 checkParams [] = ask
 checkParams (p:ps) = do
-    env' <- checkParam p
-    local (const env') $ checkParams ps
+    env <- checkParam p
+    local (const env) $ checkParams ps
 
 mergeEnv :: TEnv -> TM TEnv
-mergeEnv (varEnv, funcEnv) = do
-    (oldVarEnv, oldFuncEnv) <- ask
+mergeEnv (varEnv, funcEnv, inLoop) = do
+    (oldVarEnv, oldFuncEnv, _) <- ask
     let newVarEnv = Map.union oldVarEnv varEnv
     let newFuncEnv = Map.union oldFuncEnv funcEnv
-    return (newVarEnv, newFuncEnv)
+    return (newVarEnv, newFuncEnv, inLoop)
 
 checkFnDef :: Pos -> Ident -> [Param] -> Block -> Ret -> TM ()
 checkFnDef pos id ps b r = do
-    (varEnv, funcEnv) <- ask
+    env@(_, funcEnv, _) <- ask
     let (t, paramTs) = funcEnv Map.! id
-    env1 <- local (const (Map.empty, Map.empty)) $ checkParams ps
+    env1 <- local (const (Map.empty, Map.empty, False)) $ checkParams ps
     env2 <- local (const env1) $ setFunc t id paramTs -- recursion
-    env3 <- local (const (varEnv, funcEnv)) $ mergeEnv env2
-    env4 <- local (const env3) $ checkBlock b False
+    env3 <- local (const env) $ mergeEnv env2
+    env4 <- local (const env3) $ checkBlock b
     env5 <- case r of
-        Turnback _ _ -> local (const env4) $ checkBlock (reverseBlock b) False
-        VTurnback _ -> local (const env4) $ checkBlock (reverseBlock b) False
+        Turnback _ _ -> local (const env4) $ checkBlock (reverseBlock b)
+        VTurnback _ -> local (const env4) $ checkBlock (reverseBlock b)
         _ -> return env4
     retT <- local (const env5) $ typeofRet r
     if retT /= t
         then throwE pos $
-            "return type of function " ++ printTree id ++
-            " does not match function's signature"
+            "return type of function '" ++ printTree id ++
+            "' does not match function's signature"
     else return ()
 
 checkGlobVar :: Pos -> TType -> [Item] -> TM ()
@@ -148,8 +149,8 @@ checkTopDefs (d:ds) = do
 
 checkProgr :: Progr -> TM ()
 checkProgr (Program pos ds) = do
-    (varEnv, funcEnv) <- setTopDefs ds
-    local (const (varEnv, funcEnv)) $ checkTopDefs ds
+    env@(_, funcEnv, _) <- setTopDefs ds
+    local (const env) $ checkTopDefs ds
     let main = Ident "main"
     if Map.notMember main funcEnv
         then throwE pos $
@@ -158,14 +159,14 @@ checkProgr (Program pos ds) = do
         let (retT, paramTs) = funcEnv Map.! main
         if retT /= VoidT
             then throwE pos $
-                "main function is not void-type"
+                "main function must be void-type"
         else if not $ null paramTs
             then throwE pos $
-                "main function has more than zero parameters"
+                "main function cannot have any parameters"
         else return ()
 
 typecheck :: Progr -> Result ()
 typecheck p = do
-    let initEnv = (Map.empty, Map.empty)
+    let initEnv = (Map.empty, Map.empty, False)
     runReaderT (checkProgr p) initEnv
     return ()

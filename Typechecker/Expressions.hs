@@ -57,10 +57,10 @@ typeofMulOp pos e1 op e2 = case op of
 
 typeofVar :: Pos -> Ident -> TM Type
 typeofVar pos id = do
-    (varEnv, funcEnv) <- ask
+    (varEnv, _, _) <- ask
     if Map.notMember id varEnv
         then throwE pos $
-            "variable " ++ printTree id ++ " is not defined"
+            "variable '" ++ printTree id ++ "' is not declared"
     else return $ varEnv Map.! id
 
 checkParamArg :: Pos -> Ident -> ParamT -> Expr -> TM ()
@@ -71,38 +71,38 @@ checkParamArg pos id p e = do
             EVar _ id -> do
                 if not $ eqTypeRef argT paramT
                     then throwE pos $
-                        "arguments to function " ++ printTree id ++ 
-                        " do not match function's signature"
+                        "types of arguments passed to function '" ++ 
+                        printTree id ++ "' do not match function's signature"
                 else return ()
             _ -> throwE pos $
-                    "non-variable argument passed as reference to function " ++ 
-                    printTree id
+                    "non-variable argument passed by reference to function '" ++ 
+                    printTree id ++ "'"
         Type paramT -> do
             if argT /= paramT
                 then throwE pos $
-                    "arguments to function " ++ printTree id ++ 
-                    " do not match function's signature"
+                    "types of arguments passed to function '" ++ 
+                    printTree id ++ "' do not match function's signature"
             else return ()
 
 checkParamsArgs :: Pos -> Ident -> [ParamT] -> [Expr] -> TM ()
 checkParamsArgs _ _ [] [] = return ()
 checkParamsArgs pos id [] _ = throwE pos $
-    "too many arguments to function " ++ printTree id
+    "too many arguments passed to function '" ++ printTree id ++ "'"
 checkParamsArgs pos id _ [] = throwE pos $
-    "too few arguments to function " ++ printTree id
+    "too few arguments passed to function '" ++ printTree id ++ "'"
 checkParamsArgs pos id (p:ps) (e:es) = do
     checkParamArg pos id p e
     checkParamsArgs pos id ps es
 
 typeofApp :: Pos -> Ident -> [Expr] -> TM Type
 typeofApp pos id es = do
-    (varEnv, funcEnv) <- ask
+    (_, funcEnv, _) <- ask
     if id == Ident "main"
         then throwE pos $
-            "called main function"
+            "cannot call main function"
     else if Map.notMember id funcEnv
         then throwE pos $
-            "function " ++ printTree id ++ " is not defined"
+            "function '" ++ printTree id ++ "' is not defined"
     else do
         let (retT, paramTs) = funcEnv Map.! id
         checkParamsArgs pos id paramTs es

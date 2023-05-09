@@ -3,22 +3,19 @@ module Utils where
 import qualified Control.Monad.Except as E ( throwError )
 import Control.Monad.Reader
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-
 import Grammar.Abs
 
 import Types
+
+posStr :: Pos -> String
+posStr Nothing = "in unknown position:\n"
+posStr (Just (l, c)) = "in line " ++ show l ++ ", column " ++ show c ++ ":\n"
 
 throwE :: Pos -> String -> TM a
 throwE pos s = lift $ E.throwError (posStr pos ++ s)
 
 throwRuntimeE :: Pos -> String -> IM a
 throwRuntimeE pos s = lift $ lift $ E.throwError (posStr pos ++ s)
-
-posStr :: Pos -> String
-posStr Nothing = "in unknown position:\n"
-posStr (Just (l, c)) = "in line " ++ show l ++ ", column " ++ show c ++ ":\n"
 
 showType :: Type -> String
 showType IntT = "int"

@@ -1,2 +1,2 @@
 Type error in line 1, column 1:
-return type of function add does not match function's signature
+return type of function 'add' does not match function's signature

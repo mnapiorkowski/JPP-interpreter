@@ -1,3 +1,2 @@
 Type error in line 2, column 16:
-in definition of string a:
-wrong type of expression: 42
+in definition of 'string a' wrong type of expression: 42

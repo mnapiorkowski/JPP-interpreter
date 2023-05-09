@@ -44,8 +44,8 @@ execDecl v i = case i of
 execDecls :: Val -> [Item] -> IM IEnv
 execDecls _ [] = ask
 execDecls v (i:is) = do
-    env' <- execDecl v i
-    local (const env') $ execDecls v is
+    env <- execDecl v i
+    local (const env) $ execDecls v is
 
 execSDecl :: TType -> [Item] -> IM IEnv
 execSDecl tt is = do
@@ -144,8 +144,8 @@ execStmt s = case s of
 execStmts :: [Stmt] -> IM IEnv
 execStmts [] = ask
 execStmts (s:ss) = do
-    env' <- execStmt s
-    local (const env') $ execStmts ss
+    env <- execStmt s
+    local (const env) $ execStmts ss
 
 execBlock :: Block -> IM IEnv
 execBlock (BBlock _ ss) = execStmts ss

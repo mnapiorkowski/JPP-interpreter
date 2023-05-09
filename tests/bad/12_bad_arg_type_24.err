@@ -1,2 +1,2 @@
 Type error in line 5, column 5:
-arguments to function add do not match function's signature
+types of arguments passed to function 'add' do not match function's signature

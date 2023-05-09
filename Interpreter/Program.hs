@@ -54,8 +54,8 @@ setArg p a = case p of
 setArgs :: [Param] -> [Arg] -> IM IEnv
 setArgs [] [] = ask
 setArgs (p:ps) (a:as) = do
-    env' <- setArg p a
-    local (const env') $ setArgs ps as
+    env <- setArg p a
+    local (const env) $ setArgs ps as
 
 newFunc :: Ident -> [Param] -> Block -> Ret -> IM Func
 newFunc id ps b r = do
@@ -85,8 +85,8 @@ setGlobVar v i = case i of
 setGlobVars :: Val -> [Item] -> IM IEnv
 setGlobVars _ [] = ask
 setGlobVars v (i:is) = do
-    env' <- setGlobVar v i
-    local (const env') $ setGlobVars v is
+    env <- setGlobVar v i
+    local (const env) $ setGlobVars v is
 
 setTopDef :: TopDef -> IM IEnv
 setTopDef d = case d of
@@ -98,8 +98,8 @@ setTopDef d = case d of
 setTopDefs :: [TopDef] -> IM IEnv
 setTopDefs [] = ask
 setTopDefs (d:ds) = do
-    env' <- setTopDef d
-    local (const env') $ setTopDefs ds
+    env <- setTopDef d
+    local (const env) $ setTopDefs ds
 
 execProgr :: Progr -> IM ()
 execProgr (Program _ ds) = do

@@ -1,2 +1,2 @@
 Type error in line 5, column 1:
-global variable a is already defined
+global variable 'a' is already declared

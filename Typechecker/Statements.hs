@@ -20,9 +20,9 @@ checkSExpr e = do
 
 setVar :: Type -> Ident -> TM TEnv
 setVar t id = do
-    (varEnv, funcEnv) <- ask
+    (varEnv, funcEnv, inLoop) <- ask
     let varEnv' = Map.insert id t varEnv
-    return (varEnv', funcEnv) 
+    return (varEnv', funcEnv, inLoop) 
 
 checkNoInit :: Pos -> Type -> Ident -> TM TEnv
 checkNoInit pos t id = do
@@ -34,8 +34,8 @@ checkInit pos t id e = do
     exprT <- typeofExpr e
     if exprT /= t
         then throwE pos $ 
-            "in definition of " ++ showType t ++ " " ++ printTree id ++ 
-            " wrong type of expression: " ++ printTree e
+            "in definition of '" ++ showType t ++ " " ++ printTree id ++ 
+            "' wrong type of expression: " ++ printTree e
     else setVar t id
 
 checkDecl :: Type -> Item -> TM TEnv
@@ -46,18 +46,18 @@ checkDecl t i = case i of
 checkDecls :: Type -> [Item] -> TM TEnv
 checkDecls _ [] = ask
 checkDecls t (i:is) = do
-    env' <- checkDecl t i
-    local (const env') $ checkDecls t is
+    env <- checkDecl t i
+    local (const env) $ checkDecls t is
 
 checkSDecl :: Pos -> TType -> [Item] -> TM TEnv
 checkSDecl pos tt is = do
     let t = convTType tt
     if t == VoidT
         then throwE pos $
-            "declared void-type variable: " ++ printTree is
+            "declared void-type variable '" ++ printTree is ++ "'"
     else do
-        env' <- checkDecls t is
-        return env'
+        env <- checkDecls t is
+        return env
 
 checkSAss :: Pos -> Ident -> Expr -> TM TEnv
 checkSAss pos id e = do
@@ -70,8 +70,8 @@ checkSIncrDecr pos id = do
     t <- typeofVar pos id
     if t /= IntT
         then throwE pos $
-            "increment or decrement operator applied to non-int-type variable "
-            ++ printTree id
+            "increment or decrement operator applied to non-int-type variable '"
+            ++ printTree id ++ "'"
     else ask
 
 checkIfExpr :: Pos -> Expr -> TM ()
@@ -79,31 +79,31 @@ checkIfExpr pos e = do
     t <- typeofExpr e
     if t /= BoolT
         then throwE pos $
-            "expression in if statement is not bool-type: " ++ printTree e
+            "condition in if statement is not bool-type: " ++ printTree e
     else return ()
 
-checkElif :: Elif -> Bool -> TM TEnv
-checkElif (SElif pos e b) isLoop = do
+checkElif :: Elif -> TM TEnv
+checkElif (SElif pos e b) = do
     checkIfExpr pos e
-    checkBlock b isLoop
+    checkBlock b
 
-checkElifs :: [Elif] -> Bool -> TM TEnv
-checkElifs [] _ = ask
-checkElifs (e:es) isLoop = do
-    env' <- checkElif e isLoop
-    local (const env') $ checkElifs es isLoop
+checkElifs :: [Elif] -> TM TEnv
+checkElifs [] = ask
+checkElifs (e:es) = do
+    env <- checkElif e
+    local (const env) $ checkElifs es
 
-checkSIf :: Pos -> Expr -> Block -> [Elif] -> Bool -> TM TEnv
-checkSIf pos e b elifs isLoop = do
+checkSIf :: Pos -> Expr -> Block -> [Elif] -> TM TEnv
+checkSIf pos e b elifs = do
     checkIfExpr pos e
-    checkBlock b isLoop
-    checkElifs elifs isLoop
+    checkBlock b
+    checkElifs elifs
     ask
 
-checkSIfElse :: Pos -> Expr -> Block -> [Elif] -> Block -> Bool -> TM TEnv
-checkSIfElse pos e bIf elifs bElse isLoop = do
-    checkSIf pos e bIf elifs isLoop
-    checkBlock bElse isLoop
+checkSIfElse :: Pos -> Expr -> Block -> [Elif] -> Block -> TM TEnv
+checkSIfElse pos e bIf elifs bElse = do
+    checkSIf pos e bIf elifs
+    checkBlock bElse
     ask
 
 checkSWhile :: Pos -> Expr -> Block -> TM TEnv
@@ -111,14 +111,16 @@ checkSWhile pos e b = do
     t <- typeofExpr e
     if t /= BoolT
         then throwE pos $
-            "expression in while statement is not bool-type: " ++ printTree e
+            "condition in while statement is not bool-type: " ++ printTree e
     else do
-        checkBlock b True
-        ask
+        env@(varEnv, funcEnv, _) <- ask
+        local (const (varEnv, funcEnv, True)) $ checkBlock b
+        return env
 
-checkSBreakContinue :: Pos -> Bool -> TM TEnv
-checkSBreakContinue pos isLoop = do
-    if not isLoop
+checkSBreakContinue :: Pos -> TM TEnv
+checkSBreakContinue pos = do
+    (_, _, inLoop) <- ask
+    if not inLoop
         then throwE pos $
             "break or continue used outside of a loop"
     else ask
@@ -131,26 +133,26 @@ checkSPrint pos e = do
             "tried to print void-type expression: " ++ printTree e
     else ask
 
-checkStmt :: Stmt -> Bool -> TM TEnv
-checkStmt s isLoop = case s of
+checkStmt :: Stmt -> TM TEnv
+checkStmt s = case s of
     SExpr _ e -> checkSExpr e
     SDecl pos t is -> checkSDecl pos t is
     SAss pos id e -> checkSAss pos id e
     SIncr pos id -> checkSIncrDecr pos id
     SDecr pos id -> checkSIncrDecr pos id
-    SIf pos e b elifs -> checkSIf pos e b elifs isLoop
-    SIfElse pos e bIf elifs bElse -> checkSIfElse pos e bIf elifs bElse isLoop
+    SIf pos e b elifs -> checkSIf pos e b elifs
+    SIfElse pos e bIf elifs bElse -> checkSIfElse pos e bIf elifs bElse
     SWhile pos e b -> checkSWhile pos e b
-    SBreak pos -> checkSBreakContinue pos isLoop
-    SContinue pos -> checkSBreakContinue pos isLoop
+    SBreak pos -> checkSBreakContinue pos
+    SContinue pos -> checkSBreakContinue pos
     SPrint pos e -> checkSPrint pos e
     SPrintLn pos e -> checkSPrint pos e
 
-checkStmts :: [Stmt] -> Bool -> TM TEnv
-checkStmts [] _ = ask
-checkStmts (s:ss) isLoop = do
-    env' <- checkStmt s isLoop
-    local (const env') $ checkStmts ss isLoop
+checkStmts :: [Stmt] -> TM TEnv
+checkStmts [] = ask
+checkStmts (s:ss) = do
+    env <- checkStmt s
+    local (const env) $ checkStmts ss
 
-checkBlock :: Block -> Bool -> TM TEnv
-checkBlock (BBlock _ ss) isLoop = checkStmts ss isLoop
+checkBlock :: Block -> TM TEnv
+checkBlock (BBlock _ ss) = checkStmts ss
